@@ -22,7 +22,7 @@ jobs:
           distribution: "temurin"
 
       - name: build jar
-        run: ./gradlew build
+        run: ./gradlew --no-daemon build
 
       - name: build docker image
         run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
