@@ -17,7 +17,7 @@ internal class CctrayServiceTest {
     fun `returns cctray xml for a valid github client response`() {
         // given
         val githubClient: GithubClient = mock()
-        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "build.yml")).thenReturn(
+        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "build.yml", "main")).thenReturn(
             Mono.just(
                 GithubWorkflowRunsResponse(
                     666, arrayOf(
@@ -39,7 +39,7 @@ internal class CctrayServiceTest {
         StepVerifier.create(cctrayService.getLatestWorkflowRun("idealo", "cctray-hub", "build.yml"))
             .expectNextMatches {
                 it.equals(
-                    """<Projects> <Project name="cctray-hub - build.yml" activity="Sleeping" lastBuildLabel="666" lastBuildStatus="Success" lastBuildTime="Mon Oct 11 15:15:10 CEST 2021" webUrl="https://github.com/idealo/cctray-hub" /> </Projects>"""
+                    """<Projects> <Project name="cctray-hub - build.yml - main" activity="Sleeping" lastBuildLabel="666" lastBuildStatus="Success" lastBuildTime="Mon Oct 11 15:15:10 CEST 2021" webUrl="https://github.com/idealo/cctray-hub" /> </Projects>"""
                 )
             }
             .verifyComplete()
@@ -49,16 +49,16 @@ internal class CctrayServiceTest {
     fun `returns fallback cctray xml for a failed github client response`() {
         // given
         val githubClient: GithubClient = mock()
-        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "build.yml")).thenReturn(
+        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "build.yml", "main")).thenReturn(
             Mono.just(GithubWorkflowRunsResponse(0, emptyArray(), GithubResponseCode.ERROR))
         )
         val cctrayService = CctrayService(githubClient)
         // expect
         StepVerifier.create(cctrayService.getLatestWorkflowRun("idealo", "cctray-hub", "build.yml"))
             .expectNextMatches {
-                it.startsWith("""<Projects> <Project name="cctray-hub - build.yml (main branch)" activity="CheckingModifications" lastBuildLabel="0" lastBuildStatus="Unknown" lastBuildTime="""")
+                it.startsWith("""<Projects> <Project name="cctray-hub - build.yml - main" activity="CheckingModifications" lastBuildLabel="0" lastBuildStatus="Unknown" lastBuildTime="""")
                 // not testing the dynamic build time here
-                it.endsWith("""webUrl="https://github.com/idealo/cctray-hub/actions/workflows/build.yml" /> </Projects>""")
+                it.endsWith("""webUrl="https://github.com/idealo/cctray-hub/actions/workflows/build.yml?query=branch%3Amain" /> </Projects>""")
             }
             .verifyComplete()
     }
@@ -67,16 +67,16 @@ internal class CctrayServiceTest {
     fun `returns fallback cctray xml for a successful github response without any know runs for that branch`() {
         // given
         val githubClient: GithubClient = mock()
-        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "build.yml")).thenReturn(
+        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "build.yml", "main")).thenReturn(
             Mono.just(GithubWorkflowRunsResponse(0, emptyArray(), GithubResponseCode.SUCCESS))
         )
         val cctrayService = CctrayService(githubClient)
         // expect
         StepVerifier.create(cctrayService.getLatestWorkflowRun("idealo", "cctray-hub", "build.yml"))
             .expectNextMatches {
-                it.startsWith("""<Projects> <Project name="cctray-hub - build.yml (main branch)" activity="CheckingModifications" lastBuildLabel="0" lastBuildStatus="Unknown" lastBuildTime="""")
+                it.startsWith("""<Projects> <Project name="cctray-hub - build.yml - main" activity="CheckingModifications" lastBuildLabel="0" lastBuildStatus="Unknown" lastBuildTime="""")
                 // not testing the dynamic build time here
-                it.endsWith("""webUrl="https://github.com/idealo/cctray-hub/actions/workflows/build.yml" /> </Projects>""")
+                it.endsWith("""webUrl="https://github.com/idealo/cctray-hub/actions/workflows/build.yml?query=branch%3Amain" /> </Projects>""")
             }
             .verifyComplete()
     }
@@ -85,16 +85,16 @@ internal class CctrayServiceTest {
     fun `returns Unknown status for a timed out github client response`() {
         // given
         val githubClient: GithubClient = mock()
-        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "build.yml")).thenReturn(
+        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "build.yml", "main")).thenReturn(
             Mono.just(GithubWorkflowRunsResponse(0, emptyArray(), GithubResponseCode.TIMEOUT))
         )
         val cctrayService = CctrayService(githubClient)
         // expect
         StepVerifier.create(cctrayService.getLatestWorkflowRun("idealo", "cctray-hub", "build.yml"))
             .expectNextMatches {
-                it.startsWith("""<Projects> <Project name="cctray-hub - build.yml (main branch)" activity="CheckingModifications" lastBuildLabel="0" lastBuildStatus="Unknown" lastBuildTime="""")
+                it.startsWith("""<Projects> <Project name="cctray-hub - build.yml - main" activity="CheckingModifications" lastBuildLabel="0" lastBuildStatus="Unknown" lastBuildTime="""")
                 // not testing the dynamic build time here
-                it.endsWith("""webUrl="https://github.com/idealo/cctray-hub/actions/workflows/build.yml" /> </Projects>""")
+                it.endsWith("""webUrl="https://github.com/idealo/cctray-hub/actions/workflows/build.yml?query=branch%3Amain" /> </Projects>""")
             }
             .verifyComplete()
     }
@@ -103,7 +103,7 @@ internal class CctrayServiceTest {
     fun `marks nonexistent workflows as failed to bug people about this and not waste our github rate limit`() {
         // given
         val githubClient: GithubClient = mock()
-        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "does-not-exist.yml")).thenReturn(
+        whenever(githubClient.getWorkflowRuns("idealo", "cctray-hub", "does-not-exist.yml", "main")).thenReturn(
             Mono.just(GithubWorkflowRunsResponse(0, emptyArray(), GithubResponseCode.NOT_FOUND))
         )
         val cctrayService = CctrayService(githubClient)
@@ -112,7 +112,7 @@ internal class CctrayServiceTest {
             .expectNextMatches {
                 it.startsWith("""<Projects> <Project name="idealo/cctray-hub - does-not-exist.yml" activity="Sleeping" lastBuildLabel="0" lastBuildStatus="Failure" lastBuildTime="""")
                 // not testing the dynamic build time here
-                it.endsWith("""webUrl="https://github.com/idealo/cctray-hub/actions/workflows/does-not-exist.yml" /> </Projects>""")
+                it.endsWith("""webUrl="https://github.com/idealo/cctray-hub/actions/workflows/does-not-exist.yml?query=branch%3Amain" /> </Projects>""")
             }
             .verifyComplete()
     }

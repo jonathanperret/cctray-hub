@@ -18,7 +18,19 @@ class CctrayGenericController(val cctrayService: CctrayService) {
         @PathVariable githubRepo: String,
         @PathVariable githubWorkflowNameOrId: String
     ): Mono<String> {
-        return cctrayService.getLatestWorkflowRun(githubGroup, githubRepo, githubWorkflowNameOrId)
+        return cctrayService.getLatestWorkflowRun(githubGroup, githubRepo, githubWorkflowNameOrId, "main")
+    }
+
+    @ResponseBody
+    @GetMapping(value = ["/cctray/{githubGroup}/{githubRepo}/{githubWorkflowNameOrId}/{branch}"],
+        produces = [MediaType.APPLICATION_XML_VALUE])
+    fun cctray(
+        @PathVariable githubGroup: String,
+        @PathVariable githubRepo: String,
+        @PathVariable githubWorkflowNameOrId: String,
+        @PathVariable branch: String
+    ): Mono<String> {
+        return cctrayService.getLatestWorkflowRun(githubGroup, githubRepo, githubWorkflowNameOrId, branch)
     }
 
 }

@@ -34,11 +34,11 @@ class GithubClient(
         }
         .build()
 
-    fun getWorkflowRuns(githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String): Mono<GithubWorkflowRunsResponse> {
+    fun getWorkflowRuns(githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String, branch: String): Mono<GithubWorkflowRunsResponse> {
         return webClient.get()
-            .uri(URI("${githubApiBaseUrl}/repos/$githubGroup/$githubRepo/actions/workflows/$githubWorkflowNameOrId/runs?branch=main&per_page=1"))
+            .uri(URI("${githubApiBaseUrl}/repos/$githubGroup/$githubRepo/actions/workflows/$githubWorkflowNameOrId/runs?branch=$branch&per_page=1"))
             .headers { headers ->
-                etagCache.getIfPresent(CacheKey(githubGroup, githubRepo, githubWorkflowNameOrId))?.also {
+                etagCache.getIfPresent(CacheKey(githubGroup, githubRepo, githubWorkflowNameOrId, branch))?.also {
                         etag: String -> headers.setIfNoneMatch(etag)
                     }
             }
@@ -46,34 +46,34 @@ class GithubClient(
                 if (response.statusCode() == HttpStatus.NOT_FOUND) {
                     handleNotFound(githubGroup, githubRepo, githubWorkflowNameOrId)
                 } else if (response.statusCode() == HttpStatus.NOT_MODIFIED) {
-                    handleNotModified(githubGroup, githubRepo, githubWorkflowNameOrId)
+                    handleNotModified(githubGroup, githubRepo, githubWorkflowNameOrId, branch)
                 } else if (response.statusCode().isError) {
                     handleError(githubGroup, githubRepo, githubWorkflowNameOrId, response.statusCode())
                 } else {
-                    handleIsOk(response, githubGroup, githubRepo, githubWorkflowNameOrId)
+                    handleIsOk(response, githubGroup, githubRepo, githubWorkflowNameOrId, branch)
                 }
             }
             .timeout(Duration.ofSeconds(5))
-            .doOnNext { cacheGithubPayload(it, githubGroup, githubRepo, githubWorkflowNameOrId) }
+            .doOnNext { cacheGithubPayload(it, githubGroup, githubRepo, githubWorkflowNameOrId, branch) }
             .onErrorReturn(GithubWorkflowRunsResponse(0, emptyArray(), GithubResponseCode.TIMEOUT))
     }
 
-    private fun cacheGithubPayload(it: GithubWorkflowRunsResponse, githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String) {
+    private fun cacheGithubPayload(it: GithubWorkflowRunsResponse, githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String, branch: String) {
         if (it.githubResponseCode == GithubResponseCode.SUCCESS) {
-            logger.debug("caching response for $githubGroup/$githubRepo/$githubWorkflowNameOrId")
+            logger.debug("caching response for $githubGroup/$githubRepo/$githubWorkflowNameOrId/$branch")
             payloadCache.put(
-                CacheKey(githubGroup, githubRepo, githubWorkflowNameOrId),
+                CacheKey(githubGroup, githubRepo, githubWorkflowNameOrId, branch),
                 Mono.just(it.also { it.githubResponseCode = GithubResponseCode.CACHED })
             )
         }
     }
 
-    private fun handleIsOk(response: ClientResponse, githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String): Mono<GithubWorkflowRunsResponse> {
+    private fun handleIsOk(response: ClientResponse, githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String, branch: String): Mono<GithubWorkflowRunsResponse> {
         // write etag to etag cache to be able to send it in the next request to hope
         // for a 304 - Not Modified - in which case we can get the result from the payload cache
         if (response.headers().header("etag").isNotEmpty()) {
             etagCache.put(
-                CacheKey(githubGroup, githubRepo, githubWorkflowNameOrId),
+                CacheKey(githubGroup, githubRepo, githubWorkflowNameOrId, branch),
                 response.headers().header("etag")[0])
         }
         return response.bodyToMono(GithubWorkflowRunsResponse::class.java) // GithubWorkflowRunsResponse marked as SUCCESS per default
@@ -89,9 +89,9 @@ class GithubClient(
         return Mono.just(GithubWorkflowRunsResponse(0, emptyArray(), GithubResponseCode.ERROR))
     }
 
-    private fun handleNotModified(githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String): Mono<GithubWorkflowRunsResponse> {
-        logger.debug("providing cached response for $githubGroup/$githubRepo/$githubWorkflowNameOrId")
-        val cachedGithubWorkflowRunsResponse = payloadCache.getIfPresent(CacheKey(githubGroup, githubRepo, githubWorkflowNameOrId))
+    private fun handleNotModified(githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String, branch: String): Mono<GithubWorkflowRunsResponse> {
+        logger.debug("providing cached response for $githubGroup/$githubRepo/$githubWorkflowNameOrId/$branch")
+        val cachedGithubWorkflowRunsResponse = payloadCache.getIfPresent(CacheKey(githubGroup, githubRepo, githubWorkflowNameOrId, branch))
         return cachedGithubWorkflowRunsResponse ?: Mono.just(GithubWorkflowRunsResponse(0, emptyArray(), GithubResponseCode.NOT_FOUND)
         )
     }
@@ -102,4 +102,4 @@ class GithubClient(
     }
 }
 
-data class CacheKey(val githubGroup: String, val githubRepo: String, val githubWorkflowNameOrId: String)
+data class CacheKey(val githubGroup: String, val githubRepo: String, val githubWorkflowNameOrId: String, val branch: String)

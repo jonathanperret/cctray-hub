@@ -55,7 +55,7 @@ class GithubClientIT {
             )
         )
         // expect
-        StepVerifier.create(githubClient.getWorkflowRuns("hennr", "series-stalker", "maven.yml"))
+        StepVerifier.create(githubClient.getWorkflowRuns("hennr", "series-stalker", "maven.yml", "main"))
             .expectNextMatches {
                 it.totalCount == expectedResult.totalCount &&
                 it.latestWorkflowRun == expectedResult.latestWorkflowRun
@@ -92,7 +92,7 @@ class GithubClientIT {
             )
         )
         // expect
-        StepVerifier.create(githubClient.getWorkflowRuns("hennr", "series-stalker", "maven.yml"))
+        StepVerifier.create(githubClient.getWorkflowRuns("hennr", "series-stalker", "maven.yml", "main"))
             .expectNextMatches {
                 it.totalCount == expectedResult.totalCount &&
                 it.latestWorkflowRun == expectedResult.latestWorkflowRun
@@ -227,7 +227,7 @@ class GithubClientIT {
         )
 
         // expect
-        StepVerifier.create(githubClient.getWorkflowRuns("hennr", "series-stalker", "maven.yml"))
+        StepVerifier.create(githubClient.getWorkflowRuns("hennr", "series-stalker", "maven.yml", "main"))
             .expectNextMatches {
                 it.totalCount == 0 &&
                 it.latestWorkflowRun == null
@@ -250,7 +250,7 @@ class GithubClientIT {
                 )
         )
         // expect
-        StepVerifier.create(githubClient.getWorkflowRuns("hennr", "series-stalker", "maven.yml"))
+        StepVerifier.create(githubClient.getWorkflowRuns("hennr", "series-stalker", "maven.yml", "main"))
             .expectNextMatches {
                 it.totalCount == 0 &&
                 it.latestWorkflowRun == null
@@ -279,7 +279,7 @@ class GithubClientIT {
     }
 
     private fun githubApiGetsRequestedFor(githubGroup: String, githubRepo: String, githubWorkflowNameOrId: String) {
-        StepVerifier.create(githubClient.getWorkflowRuns(githubGroup, githubRepo, githubWorkflowNameOrId))
+        StepVerifier.create(githubClient.getWorkflowRuns(githubGroup, githubRepo, githubWorkflowNameOrId, "main"))
             .expectNextMatches { it.totalCount == 84 }
             .verifyComplete()
     }
