@@ -1,0 +1,7 @@
+services:
+  cctray-hub:
+    build: .
+    ports:
+      - '10000:8080'
+    env_file: .env
+
